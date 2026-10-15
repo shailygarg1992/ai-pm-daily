@@ -121,6 +121,7 @@ export const SECTIONS = [
   { id: 'advanced', name: 'Advanced Topics', emoji: '\uD83D\uDE80', color: '#8B5CF6', desc: 'AI-generated chapters based on your gaps' },
   { id: 'interview', name: 'Interview Prep', emoji: '\uD83C\uDFAF', color: '#F59E0B', desc: 'Company-specific AI PM prep' },
   { id: 'pulse', name: 'Daily Pulse', emoji: '\u26A1', color: '#EF4444', desc: 'Live AI news & insights' },
+  { id: 'coach', name: 'AI Coach', emoji: '\uD83E\uDDD1\u200D\uD83C\uDFEB', color: '#0EA5E9', desc: 'Your personal agent: lessons, quizzes, mock interviews' },
 ];
 
 // Quiz topic tags for tracking weak areas

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DAYS, HOT_TOOLS, DAY_TOOLS, DAY_VIDEOS, COMPANIES, SECTIONS, TOPIC_TAGS } from './data';
+import CoachSection from './Coach';
 
 // ─── TTS Hook ───────────────────────────────────────────────────
 function useTTS() {
@@ -274,7 +275,7 @@ export default function App() {
     setActiveSection(section);
     setSidebarOpen(false);
     track('navigate', { section });
-    if (section === 'fundamentals' || section === 'advanced' || section === 'interview' || section === 'pulse') {
+    if (section === 'fundamentals' || section === 'advanced' || section === 'interview' || section === 'pulse' || section === 'coach') {
       setView('home');
     }
     window.scrollTo(0, 0);
@@ -373,6 +374,7 @@ export default function App() {
           <InterviewPrepSection level={level} progress={interviewProgress} setProgress={setInterviewProgress} xp={xp} setXP={setXP} />
         )}
         {view === 'home' && activeSection === 'pulse' && <DailyPulseSection />}
+        {view === 'home' && activeSection === 'coach' && <CoachSection T={T} />}
         {view === 'briefing' && <BriefingView day={day} dayIdx={selectedDay} goHome={goHome} startQuiz={startQuiz} level={level} />}
         {view === 'quiz' && <QuizView day={day} currentQ={currentQ} answered={answered} level={level}
           selectedOption={selectedOption} answerQuestion={answerQuestion} nextQuestion={nextQuestion} goHome={goHome} />}
@@ -457,7 +459,7 @@ function Sidebar({ open, activeSection, onNavigate, onClose, scores, genScores, 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: isActive ? 700 : 600, color: isActive ? sec.color : T.text }}>{sec.name}</div>
                 <div style={{ fontSize: 11, color: T.sub }}>{sec.desc}</div>
-                {sec.id !== 'pulse' && (
+                {sec.id !== 'pulse' && sec.id !== 'coach' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                     <div style={{ flex: 1, height: 3, background: '#E5E7EB', borderRadius: 2 }}>
                       <div style={{ height: 3, background: sec.color, borderRadius: 2, width: `${(progress / total) * 100}%`, transition: 'width 0.3s' }} />
