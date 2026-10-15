@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#F3F5F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C1118" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AI PM Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen phone chat. Header / scrolling thread / composer pinned to the bottom. */
+:root {
+  --bg: #F3F5F8; --surface: #FFFFFF; --ink: #0B1220; --muted: #5B6575; --line: #E2E6EC;
+  --accent: #1F5BFF; --accent-ink: #FFFFFF; --accent-soft: #E7EEFF; --ok: #12895B; --bad: #C2362F; --bad-soft: #FCEBEA;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0C1118; --surface: #151C26; --ink: #E9EEF5; --muted: #95A1B3; --line: #253041;
+    --accent: #5B8CFF; --accent-ink: #06122E; --accent-soft: #18264A; --ok: #3CC48A; --bad: #FF7A70; --bad-soft: #3A1B1A; color-scheme: dark; }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); -webkit-font-smoothing: antialiased; overflow: hidden; }
+.app { height: 100dvh; display: flex; flex-direction: column; max-width: 640px; margin: 0 auto; }
+
+header { flex: none; display: flex; align-items: center; gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line); background: var(--bg); }
+.brand { flex: 1; min-width: 0; }
+.brand h1 { margin: 0; font: 700 21px/1.1 var(--display); letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eve-pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 6px 10px; font: 500 11.5px var(--mono); cursor: pointer; }
+.eve-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.eve-pill.live .dot { background: var(--ok); }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 36px; height: 36px; border-radius: 10px; font-size: 18px; cursor: pointer; }
+
+main { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+.thread { display: flex; flex-direction: column; gap: 10px; }
+
+.welcome { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.welcome h2 { margin: 0 0 4px; font: 700 20px/1.2 var(--display); text-wrap: balance; }
+.welcome p { margin: 0 0 14px; color: var(--muted); font-size: 14.5px; }
+.starters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.starter { text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 12px; cursor: pointer; min-height: 72px; font: inherit; }
+.starter b { display: block; font-size: 14.5px; }
+.starter span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.starter:active { background: var(--accent-soft); }
+
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 15.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 6px; white-space: pre-wrap; }
+.msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.msg.bot p { margin: 0 0 8px; } .msg.bot p:last-child { margin: 0; }
+.msg.bot ul { margin: 4px 0 8px; padding-left: 20px; } .msg.bot li { margin: 2px 0; }
+.msg.bot a { color: var(--accent); }
+.msg.bot code { font: 0.88em var(--mono); background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+.msg.err { align-self: stretch; max-width: none; background: var(--bad-soft); color: var(--bad); font-size: 14px; border-radius: 12px; }
+
+.step { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font: 12px var(--mono); color: var(--muted); padding: 2px 4px; }
+.step i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite; }
+.step.done i { background: var(--ok); animation: none; }
+.thinking { align-self: flex-start; color: var(--muted); font-size: 14px; }
+.thinking::after { content: "…"; animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+
+.quick { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
+.quick button { min-width: 52px; height: 44px; border-radius: 12px; border: 1.5px solid var(--accent); background: var(--surface); color: var(--accent); font: 700 16px var(--body); cursor: pointer; padding: 0 14px; }
+.quick button:active { background: var(--accent-soft); }
+
+footer { flex: none; background: var(--bg); border-top: 1px solid var(--line);
+  padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 10px) max(12px, env(safe-area-inset-left, 0px)); }
+form { display: flex; gap: 8px; align-items: flex-end; }
+textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 14px;
+  padding: 11px 14px; font: 16px/1.4 var(--body); max-height: 120px; outline: none; }
+textarea:focus { border-color: var(--accent); }
+.send { flex: none; height: 46px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font: 700 15px var(--body); cursor: pointer; }
+.send:disabled { opacity: .45; }
+.send.stop { background: var(--ink); color: var(--bg); }
+
+/* Under the hood sheet */
+.sheet-bg { position: fixed; inset: 0; background: rgba(5, 10, 20, .45); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-width: 640px; margin: 0 auto; max-height: 82dvh; overflow-y: auto;
+  background: var(--surface); border-radius: 20px 20px 0 0; border: 1px solid var(--line);
+  padding: 8px max(18px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 18px) max(18px, env(safe-area-inset-left, 0px)); }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 12px; }
+.sheet h3 { margin: 0 0 4px; font: 700 19px var(--display); }
+.sheet .sub { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13.5px; margin-bottom: 16px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.sheet h4 { margin: 0 0 8px; font: 600 12px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tools span { font: 12px var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+.tools span.used { border-color: var(--ok); color: var(--ok); }
+.log { font: 11.5px/1.6 var(--mono); background: var(--bg); border-radius: 10px; padding: 10px 12px; max-height: 220px; overflow-y: auto; color: var(--muted); }
+.log b { color: var(--ink); font-weight: 500; }
+.sheet .close { margin-top: 14px; width: 100%; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 600 15px var(--body); }
+[hidden] { display: none !important; }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>AI PM Coach</h1>
+      <p>5-minute lessons, quizzes &amp; mock interviews</p>
+    </div>
+    <button class="eve-pill" id="hoodBtn" type="button" aria-label="Show how this agent runs"><span class="dot"></span>eve · Vercel</button>
+    <button class="icon-btn" id="newBtn" type="button" aria-label="New chat" title="New chat">↺</button>
+  </header>
+
+  <main id="scroller">
+    <div class="thread" id="thread">
+      <section class="welcome" id="welcome">
+        <h2>Become an AI-native PM, 5 minutes at a time.</h2>
+        <p>A durable agent that teaches the 7-day curriculum, grades your answers, and remembers your progress.</p>
+        <div class="starters">
+          <button class="starter" type="button" data-say="Give me a 5-minute lesson. Start with Day 1."><b>5-min lesson</b><span>Day 1: AI agents</span></button>
+          <button class="starter" type="button" data-say="Quiz me on Day 3: RAG, fine-tuning and prompting."><b>Quiz me</b><span>Graded, with tips</span></button>
+          <button class="starter" type="button" data-say="Run a mock AI PM interview for Anthropic, senior PM level."><b>Mock interview</b><span>Anthropic, OpenAI, Uber…</span></button>
+          <button class="starter" type="button" data-say="What are the biggest AI news items this week, and why do they matter for PMs?"><b>AI this week</b><span>News that matters for PMs</span></button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <form id="form" autocomplete="off">
+      <textarea id="input" rows="1" placeholder="Ask, or answer A–D" enterkeyhint="send" aria-label="Message"></textarea>
+      <button class="send" id="sendBtn" type="submit">Send</button>
+    </form>
+  </footer>
+</div>
+
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<section class="sheet" id="sheet" hidden aria-label="Under the hood">
+  <div class="grab"></div>
+  <h3>Under the hood</h3>
+  <p class="sub">This coach is an <b>eve</b> agent, Vercel's open-source agent framework, running on Vercel Functions and Workflow. Each chat is a durable session: reload the page and it's still here.</p>
+  <dl class="kv">
+    <dt>Framework</dt><dd id="hvEve">eve</dd>
+    <dt>Model</dt><dd id="hvModel">anthropic/claude-sonnet-4.6 via AI Gateway</dd>
+    <dt>Session</dt><dd id="hvSession">starts with your first message</dd>
+    <dt>Events</dt><dd id="hvEvents">0</dd>
+  </dl>
+  <h4>Agent tools</h4>
+  <div class="tools" id="hvTools">
+    <span data-t="list_days">list_days</span><span data-t="get_briefing">get_briefing</span><span data-t="ask_quiz_question">ask_quiz_question</span>
+    <span data-t="check_answer">check_answer</span><span data-t="get_progress">get_progress</span><span data-t="web_search">web_search</span><span data-t="mock-interview">skill: mock-interview</span>
+  </div>
+  <h4>Live event stream</h4>
+  <div class="log" id="hvLog">Events from the eve session stream appear here.</div>
+  <button class="close" id="sheetClose" type="button">Close</button>
+</section>
+
+<script>
+(function () {
+  var KEY = "aipm_coach_eve_session";
+  var thread = document.getElementById("thread");
+  var scroller = document.getElementById("scroller");
+  var welcome = document.getElementById("welcome");
+  var input = document.getElementById("input");
+  var sendBtn = document.getElementById("sendBtn");
+  var hoodBtn = document.getElementById("hoodBtn");
+  var state = { id: null, cursor: 0, busy: false, ctrl: null, events: 0, used: {} };
+  var nodes = {};       // chat item id -> element
+  var botText = {};     // assistant block id -> text
+  var lastBot = null;
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify({ id: state.id, cursor: state.cursor })); } catch (e) { /* storage off */ } }
+  function clearSaved() { try { localStorage.removeItem(KEY); } catch (e) { /* storage off */ } }
+  function scrollDown() { requestAnimationFrame(function () { scroller.scrollTop = scroller.scrollHeight; }); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // Small, safe markdown: paragraphs, bullets, **bold**, `code`, [link](https://…)
+  function inline(s) {
+    return esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(text) {
+    var out = [], list = null;
+    String(text || "").split("\n").forEach(function (raw) {
+      var line = raw.replace(/^#+\s*/, "");
+      var b = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+      if (b) { if (!list) { list = []; } list.push("<li>" + inline(b[1]) + "</li>"); return; }
+      if (list) { out.push("<ul>" + list.join("") + "</ul>"); list = null; }
+      if (line.trim()) out.push("<p>" + inline(line) + "</p>");
+    });
+    if (list) out.push("<ul>" + list.join("") + "</ul>");
+    return out.join("");
+  }
+
+  function add(id, cls, html) {
+    var el = nodes[id];
+    if (!el) { el = document.createElement("div"); el.className = cls; nodes[id] = el; thread.appendChild(el); }
+    el.innerHTML = html;
+    welcome.hidden = true;
+    scrollDown();
+    return el;
+  }
+  function removeQuick() { var q = thread.querySelectorAll(".quick"); for (var i = 0; i < q.length; i++) q[i].remove(); }
+  function showQuick() {
+    removeQuick();
+    if (!lastBot) return;
+    var t = botText[lastBot] || "";
+    var letters = [];
+    ["A", "B", "C", "D"].forEach(function (L) { if (new RegExp("(^|\\n)\\s*(\\*\\*)?\\(?" + L + "[).:]", "m").test(t)) letters.push(L); });
+    if (letters.length < 3) return;
+    var row = document.createElement("div"); row.className = "quick";
+    letters.forEach(function (L) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = L;
+      b.onclick = function () { send(L); }; row.appendChild(b);
+    });
+    thread.appendChild(row); scrollDown();
+  }
+  var thinkingEl = null;
+  function thinking(on) {
+    if (on && !thinkingEl) { thinkingEl = document.createElement("div"); thinkingEl.className = "thinking"; thinkingEl.textContent = "Coach is thinking"; thread.appendChild(thinkingEl); scrollDown(); }
+    if (!on && thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+  }
+
+  // Under-the-hood panel
+  var logEl = document.getElementById("hvLog"), logLines = [];
+  function hood(ev) {
+    state.events++;
+    document.getElementById("hvEvents").textContent = String(state.events);
+    if (state.id) document.getElementById("hvSession").textContent = state.id;
+    var d = ev.data || {};
+    if (ev.type === "session.started" && d.runtime && d.runtime.eveVersion) document.getElementById("hvEve").textContent = "eve " + d.runtime.eveVersion + " · agent “" + (d.runtime.agentName || "coach") + "”";
+    if (ev.type === "step.started" && d.modelId) document.getElementById("hvModel").textContent = d.modelId + " via AI Gateway";
+    if (ev.type === "message.appended" || ev.type === "reasoning.appended" || ev.type === "action.input.appended") return;
+    var detail = "";
+    if (ev.type === "actions.requested") detail = (d.actions || []).map(function (a) { return a.toolName || a.name || a.kind; }).join(", ");
+    logLines.push("<b>" + esc(ev.type) + "</b>" + (detail ? " " + esc(detail) : ""));
+    if (logLines.length > 60) logLines.shift();
+    logEl.innerHTML = logLines.join("<br>");
+    logEl.scrollTop = logEl.scrollHeight;
+    hoodBtn.classList.add("live");
+  }
+  function markTool(name) {
+    if (!name) return;
+    state.used[name] = true;
+    var s = document.querySelector('#hvTools [data-t="' + name + '"]');
+    if (s) s.classList.add("used");
+  }
+
+  // Fold one eve stream event into the chat
+  function apply(ev) {
+    var d = ev.data || {};
+    var key = d.turnId + ":" + d.stepIndex + ":" + d.sequence;
+    hood(ev);
+    switch (ev.type) {
+      case "message.received":
+        removeQuick();
+        add("u:" + d.turnId + ":" + d.sequence, "msg user", esc(d.message));
+        break;
+      case "turn.started": thinking(true); break;
+      case "message.appended":
+        thinking(false);
+        botText["a:" + key] = (botText["a:" + key] || "") + d.messageDelta;
+        lastBot = "a:" + key;
+        add("a:" + key, "msg bot", md(botText["a:" + key]));
+        break;
+      case "message.completed":
+        thinking(false);
+        botText["a:" + key] = d.message; lastBot = "a:" + key;
+        add("a:" + key, "msg bot", md(d.message));
+        break;
+      case "actions.requested":
+        thinking(false);
+        (d.actions || []).forEach(function (a) {
+          var id = a.callId; if (!id) return;
+          var name = a.toolName || a.name || "";
+          markTool(a.kind === "load-skill" ? (a.name || "") : name);
+          var label = (d.presentation && d.presentation[id] && d.presentation[id].label) || String(name || "Working").replace(/_/g, " ");
+          if (!nodes["t:" + id]) add("t:" + id, "step", "<i></i>" + esc(label));
+        });
+        break;
+      case "action.result":
+        var cid = d.result && d.result.callId;
+        if (cid && nodes["t:" + cid]) nodes["t:" + cid].classList.add("done");
+        break;
+      case "turn.failed":
+        thinking(false);
+        add("e:" + (ev.meta && ev.meta.id || Math.random()), "msg err", esc(d.message || "Something went wrong. Try again."));
+        break;
+      case "session.waiting":
+      case "turn.completed":
+        thinking(false);
+        break;
+    }
+  }
+
+  async function post(url, body) {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      var res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      if (res.status === 409) {
+        var err = await res.json().catch(function () { return {}; });
+        if (err.code === "session_not_ready") { await new Promise(function (r) { setTimeout(r, 300 * Math.pow(2, attempt)); }); continue; }
+        var e = new Error(err.error || "Session ended"); e.code = err.code || "conflict"; throw e;
+      }
+      if (!res.ok) throw new Error("The coach returned " + res.status + ". Try again.");
+      return res.json();
+    }
+    throw new Error("The coach is still starting. Try again.");
+  }
+
+  async function stream(follow, signal) {
+    for (var reconnect = 0; reconnect < 5; reconnect++) {
+      var q = "startIndex=" + state.cursor + (follow ? "" : "&follow=false");
+      var res = await fetch("/eve/v1/session/" + state.id + "/stream?" + q, { signal: signal });
+      if (!res.ok) { var e = new Error("stream " + res.status); e.status = res.status; throw e; }
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = "", parked = false;
+      for (;;) {
+        var r = await reader.read();
+        if (r.done) break;
+        buf += dec.decode(r.value, { stream: true });
+        var nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          var line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+          if (!line) continue;
+          var ev; try { ev = JSON.parse(line); } catch (x) { continue; }
+          if (!ev || typeof ev.type !== "string") continue;
+          state.cursor++; save();
+          apply(ev);
+          if (follow && (ev.type === "session.waiting" || ev.type === "session.failed" || ev.type === "session.completed")) parked = true;
+        }
+        if (parked) { reader.cancel().catch(function () {}); return; }
+      }
+      if (!follow) return;
+    }
+  }
+
+  function setBusy(b) {
+    state.busy = b;
+    sendBtn.textContent = b ? "Stop" : "Send";
+    sendBtn.classList.toggle("stop", b);
+  }
+
+  async function send(text) {
+    var message = String(text || "").trim();
+    if (!message || state.busy) return;
+    input.value = ""; autosize();
+    removeQuick(); setBusy(true);
+    state.ctrl = new AbortController();
+    try {
+      if (state.id) {
+        try { await post("/eve/v1/session/" + state.id, { message: message }); }
+        catch (e) { if (e.code !== "session_not_active" && e.code !== "session_stranded") throw e; reset(true); }
+      }
+      if (!state.id) {
+        thinking(true);
+        var r = await post("/eve/v1/session", { message: message });
+        state.id = r.sessionId; state.cursor = 0; save();
+      }
+      await stream(true, state.ctrl.signal);
+      showQuick();
+    } catch (e) {
+      thinking(false);
+      if (e.name !== "AbortError") add("e:" + Date.now(), "msg err", esc(e.message || "Couldn't reach the coach. Check your connection and try again."));
+    } finally { setBusy(false); }
+  }
+
+  function reset(keepWelcome) {
+    if (state.ctrl) state.ctrl.abort();
+    state.id = null; state.cursor = 0; state.events = 0; state.used = {};
+    clearSaved(); nodes = {}; botText = {}; lastBot = null; thinkingEl = null;
+    Array.prototype.slice.call(thread.children).forEach(function (c) { if (c !== welcome) c.remove(); });
+    welcome.hidden = !!keepWelcome && false;
+    logLines = []; logEl.textContent = "Events from the eve session stream appear here.";
+    document.getElementById("hvEvents").textContent = "0";
+    document.getElementById("hvSession").textContent = "starts with your first message";
+    var used = document.querySelectorAll("#hvTools .used"); for (var i = 0; i < used.length; i++) used[i].classList.remove("used");
+    hoodBtn.classList.remove("live");
+    setBusy(false);
+  }
+
+  function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px"; }
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); } });
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (state.busy) { if (state.id) fetch("/eve/v1/session/" + state.id + "/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(function () {}); return; }
+    send(input.value);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".starter"), function (b) { b.addEventListener("click", function () { send(b.getAttribute("data-say")); }); });
+  document.getElementById("newBtn").addEventListener("click", function () { reset(false); });
+
+  var sheet = document.getElementById("sheet"), sheetBg = document.getElementById("sheetBg");
+  function openSheet(on) { sheet.hidden = !on; sheetBg.hidden = !on; }
+  hoodBtn.addEventListener("click", function () { openSheet(true); });
+  sheetBg.addEventListener("click", function () { openSheet(false); });
+  document.getElementById("sheetClose").addEventListener("click", function () { openSheet(false); });
+
+  // Durable sessions: restore the saved conversation on reload.
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
+  if (saved && saved.id) {
+    state.id = saved.id; state.cursor = 0;
+    stream(false).then(showQuick).catch(function () { reset(false); });
+  }
+})();
+</script>
+</body>
+</html>
